@@ -8,6 +8,7 @@ class Piece:
 class Pawn(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+        self.value = 1
 
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
@@ -42,6 +43,7 @@ class Pawn(Piece):
 class Knight(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+        self.value = 3
 
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
@@ -62,6 +64,7 @@ class Knight(Piece):
 class Bishop(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+        self.value = 3
 
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
@@ -86,6 +89,7 @@ class Bishop(Piece):
 class Rook(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+        self.value = 5
 
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
@@ -104,6 +108,7 @@ class Rook(Piece):
 class Queen(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+        self.value = 9
 
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
