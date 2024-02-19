@@ -38,31 +38,6 @@ class Board:
             self.set_piece(piece.row, piece.col, piece)
 
 
-    def in_check(self, color):
-        if color == "white":
-            # Find the white king
-            for piece in self.white_pieces:
-                if isinstance(piece, King):
-                    white_king = piece
-                    break
-            
-            for piece in self.black_pieces:
-                if piece.captures()[white_king.row][white_king.col] == 1:
-                    return True
-            return False
-        else:
-            # Find the black king
-            for piece in self.black_pieces:
-                if isinstance(piece, King):
-                    black_king = piece
-                    break
-            
-            for piece in self.white_pieces:
-                if piece.captures()[black_king.row][black_king.col] == 1:
-                    return True
-            return False
-
-
     def is_valid_move(self, start_row, start_col, end_row, end_col):
         piece = self.get_piece(start_row, start_col)
 
@@ -76,11 +51,6 @@ class Board:
         else:
             potential_moves = piece.moves()
 
-        if self.in_check(piece.color):
-            temp_board = deepcopy(self)
-            temp_board.move_piece(start_row, start_col, end_row, end_col)
-            if temp_board.in_check(piece.color):
-                return False
 
         if isinstance(piece, Knight) or isinstance(piece, King) or isinstance(piece, Pawn):
             return potential_moves[end_row][end_col] == 1
@@ -172,9 +142,34 @@ class Board:
                             if self.get_piece(start_row - i, start_col - i) is not None:
                                 return False
             return True
+    
+
+    def in_check(self, color):
+        if color == "white":
+            # Find the white king
+            for piece in self.white_pieces:
+                if isinstance(piece, King):
+                    white_king = piece
+                    break
+            
+            for piece in self.black_pieces:
+                if self.is_valid_move(piece.row, piece.col, white_king.row, white_king.col):
+                    return True
+            return False
+        else:
+            # Find the black king
+            for piece in self.black_pieces:
+                if isinstance(piece, King):
+                    black_king = piece
+                    break
+            
+            for piece in self.white_pieces:
+                if self.is_valid_move(piece.row, piece.col, black_king.row, black_king.col):
+                    return True
+            return False
 
 
-    def move_piece(self, start_row, start_col, end_row, end_col):
+    def move_regardless(self, start_row, start_col, end_row, end_col):
         piece = self.get_piece(start_row, start_col)
 
         if self.is_valid_move(start_row, start_col, end_row, end_col):
@@ -190,6 +185,19 @@ class Board:
             self.set_piece(start_row, start_col, None)
             piece.row = end_row
             piece.col = end_col
+
+
+    def move_piece(self, start_row, start_col, end_row, end_col):
+        piece = self.get_piece(start_row, start_col)
+        if self.in_check(piece.color):
+            temp_board = deepcopy(self)
+            temp_board.move_regardless(start_row, start_col, end_row, end_col)
+            if temp_board.in_check(piece.color):
+                print(f"{piece.color} is still in check after that move")
+                return False
+
+
+        self.move_regardless(start_row, start_col, end_row, end_col)
 
     def print_board(self):
         for row in self.board:
