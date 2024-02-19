@@ -9,15 +9,6 @@ class Board:
 
     def set_piece(self, row, col, piece):
         self.board[row][col] = piece
-
-    def move_piece(self, start_row, start_col, end_row, end_col):
-        piece = self.get_piece(start_row, start_col)
-        self.set_piece(end_row, end_col, piece)
-        self.set_piece(start_row, start_col, None)
-
-    def print_board(self):
-        for row in self.board:
-            print(row)
     
     def starting_board(self):
         self.set_piece(0, 0, Rook('black', 0, 0))
@@ -39,3 +30,120 @@ class Board:
         for i in range(8):
             self.set_piece(1, i, Pawn('black', 1, i))
             self.set_piece(6, i, Pawn('white', 6, i))
+    
+    def legal_moves(self, start_row, start_col, end_row, end_col):
+        piece = self.get_piece(start_row, start_col)
+
+        if piece is None:
+            return False
+
+        if self.get_piece(end_row, end_col) is not None:
+            if self.get_piece(end_row, end_col).color == piece.color:
+                return False
+            potential_moves = piece.captures()
+        else:
+            potential_moves = piece.moves()
+
+        if isinstance(piece, Knight) or isinstance(piece, King) or isinstance(piece, Pawn):
+            return potential_moves[end_row][end_col] == 1
+        
+        elif isinstance(piece, Rook):
+            if start_row == end_row:
+                if start_col < end_col:
+                    for i in range(start_col + 1, end_col):
+                        if self.get_piece(start_row, i) is not None:
+                            return False
+                else:
+                    for i in range(end_col + 1, start_col):
+                        if self.get_piece(start_row, i) is not None:
+                            return False
+            elif start_col == end_col:
+                if start_row < end_row:
+                    for i in range(start_row + 1, end_row):
+                        if self.get_piece(i, start_col) is not None:
+                            return False
+                else:
+                    for i in range(end_row + 1, start_row):
+                        if self.get_piece(i, start_col) is not None:
+                            return False
+            else:
+                return False
+            return True
+
+        elif isinstance(piece, Bishop):
+            if abs(start_row - end_row) != abs(start_col - end_col):
+                return False
+            if start_row < end_row:
+                if start_col < end_col:
+                    for i in range(1, abs(start_row - end_row)):
+                        if self.get_piece(start_row + i, start_col + i) is not None:
+                            return False
+                else:
+                    for i in range(1, abs(start_row - end_row)):
+                        if self.get_piece(start_row + i, start_col - i) is not None:
+                            return False
+            else:
+                if start_col < end_col:
+                    for i in range(1, abs(start_row - end_row)):
+                        if self.get_piece(start_row - i, start_col + i) is not None:
+                            return False
+                else:
+                    for i in range(1, abs(start_row - end_row)):
+                        if self.get_piece(start_row - i, start_col - i) is not None:
+                            return False
+            return True
+        
+        elif isinstance(piece, Queen):
+            if start_row == end_row:
+                if start_col < end_col:
+                    for i in range(start_col + 1, end_col):
+                        if self.get_piece(start_row, i) is not None:
+                            return False
+                else:
+                    for i in range(end_col + 1, start_col):
+                        if self.get_piece(start_row, i) is not None:
+                            return False
+            elif start_col == end_col:
+                if start_row < end_row:
+                    for i in range(start_row + 1, end_row):
+                        if self.get_piece(i, start_col) is not None:
+                            return False
+                else:
+                    for i in range(end_row + 1, start_row):
+                        if self.get_piece(i, start_col) is not None:
+                            return False
+            elif abs(start_row - end_row) != abs(start_col - end_col):
+                return False
+            else:
+                if start_row < end_row:
+                    if start_col < end_col:
+                        for i in range(1, abs(start_row - end_row)):
+                            if self.get_piece(start_row + i, start_col + i) is not None:
+                                return False
+                    else:
+                        for i in range(1, abs(start_row - end_row)):
+                            if self.get_piece(start_row + i, start_col - i) is not None:
+                                return False
+                else:
+                    if start_col < end_col:
+                        for i in range(1, abs(start_row - end_row)):
+                            if self.get_piece(start_row - i, start_col + i) is not None:
+                                return False
+                    else:
+                        for i in range(1, abs(start_row - end_row)):
+                            if self.get_piece(start_row - i, start_col - i) is not None:
+                                return False
+            return True
+
+    
+    def move_piece(self, start_row, start_col, end_row, end_col):
+        piece = self.get_piece(start_row, start_col)
+        if self.legal_moves(start_row, start_col, end_row, end_col):
+            self.set_piece(end_row, end_col, piece)
+            self.set_piece(start_row, start_col, None)
+            piece.row = end_row
+            piece.col = end_col
+
+    def print_board(self):
+        for row in self.board:
+            print(row)

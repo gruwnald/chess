@@ -8,6 +8,7 @@ class Piece:
 class Pawn(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
         if self.color == 'white':
@@ -19,6 +20,21 @@ class Pawn(Piece):
                 m[self.row + 2][self.col] = 1
             m[self.row + 1][self.col] = 1
         return m
+    
+    def captures(self):
+        m = [[0] * 8 for _ in range(8)]
+        if self.color == 'white':
+            if self.row - 1 >= 0 and self.col - 1 >= 0:
+                m[self.row - 1][self.col - 1] = 1
+            if self.row - 1 >= 0 and self.col + 1 < 8:
+                m[self.row - 1][self.col + 1] = 1
+        else:
+            if self.row + 1 < 8 and self.col - 1 >= 0:
+                m[self.row + 1][self.col - 1] = 1
+            if self.row + 1 < 8 and self.col + 1 < 8:
+                m[self.row + 1][self.col + 1] = 1
+        return m
+
     def __repr__(self) -> str:
         return 'p'
 
@@ -26,6 +42,7 @@ class Pawn(Piece):
 class Knight(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
         for i in range(-2, 3):
@@ -35,6 +52,9 @@ class Knight(Piece):
                         m[self.row + i][self.col + j] = 1
         return m
     
+    def captures(self):
+        return self.moves()
+
     def __repr__(self) -> str:
         return 'N'
 
@@ -42,6 +62,7 @@ class Knight(Piece):
 class Bishop(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
         for i in range(8):
@@ -54,6 +75,9 @@ class Bishop(Piece):
             if 0 <= self.row - i < 8 and 0 <= self.col - i < 8:
                 m[self.row - i][self.col - i] = 1
         return m
+
+    def captures(self):
+        return self.moves()
     
     def __repr__(self) -> str:
         return 'B'
@@ -62,12 +86,16 @@ class Bishop(Piece):
 class Rook(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
         for i in range(8):
             m[i][self.col] = 1
             m[self.row][i] = 1
         return m
+
+    def captures(self):
+        return self.moves()
     
     def __repr__(self) -> str:
         return 'R'
@@ -76,6 +104,7 @@ class Rook(Piece):
 class Queen(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
+
     def moves(self):
         m = [[0] * 8 for _ in range(8)]
         for i in range(8):
@@ -90,6 +119,9 @@ class Queen(Piece):
             if 0 <= self.row - i < 8 and 0 <= self.col - i < 8:
                 m[self.row - i][self.col - i] = 1
         return m
+    
+    def captures(self):
+        return self.moves()
     
     def __repr__(self) -> str:
         return 'Q'
@@ -108,6 +140,9 @@ class King(Piece):
                 if 0 <= self.row + i < 8 and 0 <= self.col + j < 8:
                     m[self.row + i][self.col + j] = 1
         return m
+
+    def captures(self):
+        return self.moves()
     
     def __repr__(self) -> str:
         return 'K'
