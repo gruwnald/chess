@@ -6,8 +6,6 @@ class Game:
         self.board = Board()
         self.board.starting_board()
         self.white_to_move = True
-        self.white_in_check = False
-        self.black_in_check = False
     
     
     def make_move(self, start_row, start_col, end_row, end_col):
@@ -26,7 +24,6 @@ class Game:
 
 if __name__=="__main__":
 
-
     g = Game()
     g.make_move(6, 4, 4, 4)
     g.make_move(1, 4, 3, 4)
@@ -35,15 +32,12 @@ if __name__=="__main__":
     g.make_move(4, 4, 3, 3)
     g.make_move(3, 4, 4, 3)
     g.make_move(7, 3, 6, 4)
-    g.board.print_board()
+    
     print("White in check: ", g.board.in_check("white"))
     print("black in check: ", g.board.in_check("black"))
     print("Qe7 is valid: ", g.board.is_valid_move(0, 3, 1, 4))
-    #print(g.board.in_check("black"))
+
     g.make_move(0, 3, 1, 4)
+
     g.board.print_board()
-    print("White in check: ", g.board.in_check("white"))
-    print("black in check: ", g.board.in_check("black"))
-    print("Qe7 is valid: ", g.board.is_valid_move(0, 3, 1, 4))
-    # for piece in g.board.white_pieces:
-    #     print(piece, piece.color, piece.row, piece.col)
+    

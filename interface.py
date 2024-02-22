@@ -30,7 +30,7 @@ class Chessboard(QMainWindow):
                     button.setStyleSheet("background-color: white")
                 else:
                     button.setStyleSheet("background-color: gray")
-                #button.clicked.connect(self.make_move(row, col)) TODO
+                #button.clicked.connect(self.make_move(row, col)) TODO click + click and drag + drop
                 grid_layout.addWidget(button, row, col)
                 self.buttons[row][col] = button
 
