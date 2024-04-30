@@ -45,12 +45,13 @@ def main():
                 if len(playerClicks) == 2: #That was 2nd click
                     move = Move(playerClicks[0], playerClicks[1], gs.board)
                     print(move.getChessNotation())
-                    if move in validMoves:
-                        gs.makeMove(move)
-                        moveMade = True
-                        sqSelected = () #reset user clicks
-                        playerClicks = []
-                    else:
+                    for validMove in validMoves:
+                        if move == validMove:
+                            gs.makeMove(validMove)
+                            moveMade = True
+                            sqSelected = () #reset user clicks
+                            playerClicks = []
+                    if not moveMade:
                         playerClicks = [sqSelected]
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:
