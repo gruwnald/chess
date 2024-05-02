@@ -51,6 +51,7 @@ def main():
                             moveMade = True
                             sqSelected = () #reset user clicks
                             playerClicks = []
+                            print(gs.AlphaBetaPruning(1))
                     if not moveMade:
                         playerClicks = [sqSelected]
             elif e.type == p.KEYDOWN:

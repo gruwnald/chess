@@ -115,7 +115,7 @@ class GameState:
             startRow, startCol = self.blackKingLocation
             allyColor, enemyColor = "b", "w"
         directions = ((-1, 0), (0, -1), (1, 0), (0, 1),
-                      (-1, -1), (1, -1), (-1, 1), (1, 1))
+                      (-1, -1), (-1, 1), (1, -1), (1, 1))
         for j, d in enumerate(directions):
             possiblePin = ()
             for i in range(1, 8):
@@ -133,8 +133,8 @@ class GameState:
                         if (0 <= j <= 3 and type == "R") or \
                             (4 <= j <= 7 and type == "B") or \
                             (i == 1 and type == "p" and
-                            ((enemyColor == "w" and 6 <= j <= 7) or
-                            (enemyColor == "b" and 4 <= j <= 5))) or \
+                            ((enemyColor == "w" and j in (6, 7)) or
+                            (enemyColor == "b" and j in (4, 5)))) or \
                             (type == "Q") or (i == 1 and type == "K"):
                             if possiblePin == ():
                                 inCheck = True
@@ -159,17 +159,6 @@ class GameState:
                     inCheck = True
                     checks.append((endRow, endCol, m[0], m[1]))
         return inCheck, pins, checks
-
-
-    def inCheck(self):
-        if self.whiteToMove:
-            return self.squareUnderAttack(self.whiteKingLocation[0], self.whiteKingLocation[1])
-        else:
-            return self.squareUnderAttack(self.blackKingLocation[0], self.blackKingLocation[1])
-    
-
-    def squareUnderAttack(self, row, col):
-        pass
 
 
     def getAllPossibleMoves(self):
@@ -343,6 +332,84 @@ class GameState:
                             self.whiteKingLocation = (row, col)
                         else:
                             self.blackKingLocation = (row, col)
+
+
+    def checkmate(self):
+        if self.inCheck:
+            moves = self.getValidMoves()
+            if len(moves) == 0:
+                return True
+        return False
+
+
+    def stalemate(self):
+        if not self.inCheck:
+            moves = self.getValidMoves()
+            if len(moves) == 0:
+                return True
+        return False
+    def evaluate(self):
+        pieceValue = {"p" : 1, "N" : 3, "B" : 3, "R" : 5, "Q" : 9}
+        whiteScore = 0
+        blackScore = 0
+        if self.checkmate():
+            return -1000 if self.whiteToMove else 1000
+        elif self.stalemate():
+            return 0
+        for row in self.board:
+            for piece in row:
+                if piece[1] == "K":
+                    continue
+                if piece[0] == "w":
+                    whiteScore += pieceValue[piece[1]]
+                elif piece[0] == "b":
+                    blackScore += pieceValue[piece[1]]
+
+        return whiteScore - blackScore
+
+
+    def AlphaBetaMin(self, alpha, beta, depth):
+        if depth == 0:
+            return self.evaluate()
+
+        validMoves = self.getValidMoves()
+        bestMove = validMoves[0] if len(validMoves) > 0 else None
+        for move in self.getValidMoves():
+            self.makeMove(move)
+            score = self.AlphaBetaMax(alpha, beta, depth - 1)
+            self.undoMove()
+            if score <= alpha:
+                return alpha
+            if score < beta:
+                beta = score
+                bestMove = move
+        print(bestMove.getChessNotation() if bestMove is not None else None)
+        return beta
+
+
+    def AlphaBetaMax(self, alpha, beta, depth):
+        if depth == 0:
+            return self.evaluate()
+        validMoves = self.getValidMoves()
+        bestMove = validMoves[0] if len(validMoves) > 0 else None
+        for move in validMoves:
+            self.makeMove(move)
+            score = self.AlphaBetaMin(alpha, beta, depth - 1)
+            self.undoMove()
+            if score >= beta:
+                return beta
+            if score > alpha:
+                alpha = score
+                bestMove = move
+        return alpha
+
+
+    def AlphaBetaPruning(self, depth):
+        if self.whiteToMove:
+            return self.AlphaBetaMax(-10000, 10000, depth)
+        else:
+            return self.AlphaBetaMin(-10000, 10000, depth)
+
 
 class Move:
     ranksToRows = {"1":7, "2":6, "3":5, "4":4,
