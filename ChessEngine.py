@@ -460,49 +460,6 @@ class GameState:
         return whiteScore - blackScore
 
 
-    def AlphaBetaMin(self, alpha, beta, depth):
-        if depth == 0:
-            return self.evaluate()
-
-        validMoves = self.getValidMoves()
-        bestMove = validMoves[0] if len(validMoves) > 0 else None
-        for move in self.getValidMoves():
-            self.makeMove(move)
-            score = self.AlphaBetaMax(alpha, beta, depth - 1)
-            self.undoMove()
-            if score <= alpha:
-                return alpha
-            if score < beta:
-                beta = score
-                bestMove = move
-        print(bestMove.getChessNotation() if bestMove is not None else None)
-        return beta
-
-
-    def AlphaBetaMax(self, alpha, beta, depth):
-        if depth == 0:
-            return self.evaluate()
-        validMoves = self.getValidMoves()
-        bestMove = validMoves[0] if len(validMoves) > 0 else None
-        for move in validMoves:
-            self.makeMove(move)
-            score = self.AlphaBetaMin(alpha, beta, depth - 1)
-            self.undoMove()
-            if score >= beta:
-                return beta
-            if score > alpha:
-                alpha = score
-                bestMove = move
-        return alpha
-
-
-    def AlphaBetaPruning(self, depth):
-        if self.whiteToMove:
-            return self.AlphaBetaMax(-10000, 10000, depth)
-        else:
-            return self.AlphaBetaMin(-10000, 10000, depth)
-
-
 class Move:
     ranksToRows = {"1":7, "2":6, "3":5, "4":4,
                    "5":3, "6":2, "7":1, "8":0}

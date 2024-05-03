@@ -1,5 +1,6 @@
 import pygame as p
 from ChessEngine import *
+from ChessAI import *
 
 WIDTH = HEIGHT = 512
 DIMENSION = 8
@@ -28,15 +29,17 @@ def main():
     sqSelected = () #Last clicked square, initially none
     playerClicks = [] #Keep track of player clicks, ex. [(6, 4), (4, 4)] = e2 -> e4
     gameOver = False
-
+    player1 = False #White player, if human, then True, if AI, then False
+    player2 = True #Black player, if human, then True, if AI, then False
 
     while running:
+        humanTurn = (gs.whiteToMove and player1) or (not gs.whiteToMove and player2)
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
 
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not gameOver:
+                if not gameOver and humanTurn:
                     location = p.mouse.get_pos() #(x, y)
                     col = location[0]//SQ_SIZE
                     row = location[1]//SQ_SIZE
@@ -64,6 +67,19 @@ def main():
                     gs.undoMove()
                     moveMade = True
                     gameOver = False
+                if e.key == p.K_r:
+                    gs = GameState()
+                    validMoves = gs.getValidMoves()
+                    sqSelected = ()
+                    playerClicks = []
+                    moveMade = False
+                    gameOver = False
+
+        #AI move finder logic
+        if not gameOver and not humanTurn:
+            AIMove = findBestMove(gs, validMoves)
+            gs.makeMove(AIMove)
+            moveMade = True
 
         if moveMade:
             validMoves = gs.getValidMoves()
@@ -88,7 +104,7 @@ def main():
 
 
 def drawBoard(screen):
-    colors = [p.Color("white"), p.Color("Gray")]
+    colors = [p.Color("white"), p.Color("sienna4")] #best sienna4
     for row in range(DIMENSION):
         for col in range(DIMENSION):
             color = colors[(row+col)%2]
@@ -109,12 +125,20 @@ def highlightSquares(screen, gs, validMoves, sqSelected):
         if gs.board[r][c][0] == ("w" if gs.whiteToMove else "b"): #sqSelected is a piece that can be moved
             s = p.Surface((SQ_SIZE, SQ_SIZE))
             s.set_alpha(100) #Transparency value
-            s.fill(p.Color("blue"))
-            screen.blit(s, (c*SQ_SIZE, r*SQ_SIZE))
             s.fill(p.Color("yellow"))
+            screen.blit(s, (c*SQ_SIZE, r*SQ_SIZE))
             for move in validMoves:
                 if move.startRow == r and move.startCol == c:
-                    screen.blit(s, (move.endCol*SQ_SIZE, move.endRow*SQ_SIZE))
+                    if gs.board[move.endRow][move.endCol] != "--":
+                        p.draw.circle(screen, p.Color("gray80"),
+                                      (move.endCol*SQ_SIZE + SQ_SIZE//2,
+                                       move.endRow*SQ_SIZE + SQ_SIZE//2),
+                                      radius=SQ_SIZE//2, width=SQ_SIZE//16)
+                    else:
+                        p.draw.circle(screen, p.Color("gray80"),
+                                      (move.endCol*SQ_SIZE + SQ_SIZE//2,
+                                       move.endRow*SQ_SIZE + SQ_SIZE//2),
+                                      radius=SQ_SIZE//4, width=SQ_SIZE//16)
 
 
 def drawEndGameText(screen, text):
