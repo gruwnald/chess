@@ -29,8 +29,13 @@ def main():
     sqSelected = () #Last clicked square, initially none
     playerClicks = [] #Keep track of player clicks, ex. [(6, 4), (4, 4)] = e2 -> e4
     gameOver = False
-    player1 = False #White player, if human, then True, if AI, then False
-    player2 = True #Black player, if human, then True, if AI, then False
+
+    player1 = True #White player, if human, then True, if AI, then False
+    player2 = False #Black player, if human, then True, if AI, then False
+
+    drawGameState(screen, gs, validMoves, sqSelected)
+    clock.tick(MAX_FPS)
+    p.display.flip()
 
     while running:
         humanTurn = (gs.whiteToMove and player1) or (not gs.whiteToMove and player2)
@@ -65,8 +70,11 @@ def main():
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:
                     gs.undoMove()
+                    if not((gs.whiteToMove and player1) or (not gs.whiteToMove and player2)):
+                        gs.undoMove()
                     moveMade = True
                     gameOver = False
+
                 if e.key == p.K_r:
                     gs = GameState()
                     validMoves = gs.getValidMoves()
@@ -88,15 +96,17 @@ def main():
 
         drawGameState(screen, gs, validMoves, sqSelected)
 
-        if gs.checkmate():
-            gameOver = True
-            if gs.whiteToMove:
-                drawEndGameText(screen, "Black wins by checkmate")
+        if gs.endGame():
+            if gs.checkmate():
+                if gs.whiteToMove:
+                    drawEndGameText(screen, "Black wins by checkmate")
+                else:
+                    drawEndGameText(screen, "White wins by checkmate")
+            elif gs.stalemate():
+                drawEndGameText(screen, "Stalemate")
             else:
-                drawEndGameText(screen, "White wins by checkmate")
-        elif gs.stalemate():
+                drawEndGameText(screen, "Draw by insufficient material")
             gameOver = True
-            drawEndGameText(screen, "Stalemate")
 
         clock.tick(MAX_FPS)
         p.display.flip()
@@ -130,15 +140,26 @@ def highlightSquares(screen, gs, validMoves, sqSelected):
             for move in validMoves:
                 if move.startRow == r and move.startCol == c:
                     if gs.board[move.endRow][move.endCol] != "--":
-                        p.draw.circle(screen, p.Color("gray80"),
+                        p.draw.circle(screen, p.Color("gray50"),
                                       (move.endCol*SQ_SIZE + SQ_SIZE//2,
                                        move.endRow*SQ_SIZE + SQ_SIZE//2),
                                       radius=SQ_SIZE//2, width=SQ_SIZE//16)
                     else:
-                        p.draw.circle(screen, p.Color("gray80"),
+                        p.draw.circle(screen, p.Color(150, 150, 150, a=50),
                                       (move.endCol*SQ_SIZE + SQ_SIZE//2,
                                        move.endRow*SQ_SIZE + SQ_SIZE//2),
-                                      radius=SQ_SIZE//4, width=SQ_SIZE//16)
+                                      radius=SQ_SIZE//5, width=0)
+
+def highlightLastMove(screen, gs):
+    if len(gs.moveLog) > 0:
+        move = gs.moveLog[-1]
+        startRow, startCol = move.startRow, move.startCol
+        endRow, endCol = move.endRow, move.endCol
+        s = p.Surface((SQ_SIZE, SQ_SIZE))
+        s.set_alpha(100)
+        s.fill(p.Color("yellow"))
+        screen.blit(s, (startCol*SQ_SIZE, startRow*SQ_SIZE))
+        screen.blit(s, (endCol*SQ_SIZE, endRow*SQ_SIZE))
 
 
 def drawEndGameText(screen, text):
@@ -151,6 +172,7 @@ def drawEndGameText(screen, text):
 def drawGameState(screen, gs, validMoves, sqSelected):
     drawBoard(screen)
     highlightSquares(screen, gs, validMoves, sqSelected)
+    highlightLastMove(screen, gs)
     drawPieces(screen, gs.board)
 
 
