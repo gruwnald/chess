@@ -1,6 +1,10 @@
 import random
 import math
 
+DEPTH = 3
+CHECKMATE = 1000
+STALEMATE = 0
+
 pieceValues = {
     "p": 1,
     "N": 3,
@@ -9,14 +13,120 @@ pieceValues = {
     "Q": 9,
     "K": 0
 }
-CHECKMATE = 1000
-STALEMATE = 0
-DEPTH = 4
+
+knightPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
+                       [1, 2, 2, 2, 2, 2, 2, 1],
+                       [1, 2, 3, 3, 3, 3, 2, 1],
+                       [1, 2, 3, 4, 4, 3, 2, 1],
+                       [1, 2, 3, 4, 4, 3, 2, 1],
+                       [1, 2, 3, 3, 3, 3, 2, 1],
+                       [1, 2, 2, 2, 2, 2, 2, 1],
+                       [1, 1, 1, 1, 1, 1, 1, 1]]
+
+bishopPositionScore = [[3, 1, 1, 1, 1, 1, 1, 3],
+                       [1, 4, 2, 3, 3, 2, 4, 1],
+                       [2, 2, 4, 3, 3, 4, 2, 2],
+                       [3, 4, 4, 5, 5, 4, 4, 3],
+                       [3, 4, 4, 5, 5, 4, 4, 3],
+                       [2, 2, 4, 3, 3, 4, 2, 2],
+                       [1, 4, 2, 3, 3, 2, 4, 1],
+                       [3, 1, 1, 1, 1, 1, 1, 3]]
+
+rookPositionScore = [[2, 1, 4, 5, 5, 4, 1, 2],
+                     [2, 1, 4, 5, 5, 4, 1, 2],
+                     [2, 1, 2, 3, 3, 2, 1, 2],
+                     [1, 1, 1, 2, 2, 1, 1, 1],
+                     [1, 1, 1, 2, 2, 1, 1, 1],
+                     [2, 1, 2, 3, 3, 2, 1, 2],
+                     [2, 1, 4, 5, 5, 4, 1, 2],
+                     [2, 1, 4, 5, 5, 4, 1, 2]]
+
+queenPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
+                      [1, 2, 3, 3, 3, 3, 2, 1],
+                      [2, 5, 5, 4, 4, 5, 5, 2],
+                      [2, 4, 4, 5, 5, 4, 4, 2],
+                      [2, 4, 4, 5, 5, 4, 4, 2],
+                      [1, 5, 5, 4, 4, 5, 5, 1],
+                      [2, 2, 3, 3, 3, 3, 2, 2],
+                      [1, 1, 1, 1, 1, 1, 1, 1]]
+
+whitePawnPositionScore = [[8, 8, 8, 8, 8, 8, 8, 8],
+                          [7, 7, 8, 8, 8, 8, 7, 7],
+                          [4, 6, 7, 7, 7, 7, 6, 5],
+                          [3, 4, 5, 5, 5, 5, 3, 3],
+                          [2, 3, 4, 5, 5, 2, 2, 2],
+                          [2, 3, 2, 3, 3, 1, 3, 3],
+                          [1, 1, 1, 1, 1, 1, 1, 1],
+                          [1, 1, 1, 1, 1, 1, 1, 1]]
+
+blackPawnPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
+                          [1, 1, 1, 1, 1, 1, 1, 1],
+                          [3, 3, 1, 3, 3, 2, 3, 2],
+                          [2, 2, 2, 5, 5, 4, 3, 2],
+                          [3, 3, 5, 5, 5, 5, 4, 3],
+                          [5, 6, 7, 7, 7, 7, 6, 5],
+                          [7, 7, 8, 8, 8, 8, 7, 7],
+                          [8, 8, 8, 8, 8, 8, 8, 8]]
+
+whiteKingEarlyPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [2, 2, 1, 1, 1, 1, 1, 2],
+                              [3, 5, 5, 2, 2, 3, 5, 3]]
+
+blackKingEarlyPositionScore = [[3, 5, 3, 2, 2, 5, 5, 3],
+                              [2, 2, 1, 1, 1, 1, 1, 2],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1]]
+
+whiteKingLatePositionScore = [[2, 2, 2, 2, 2, 2, 2, 2],
+                              [5, 5, 5, 5, 5, 5, 5, 5],
+                              [4, 5, 5, 5, 5, 5, 5, 4],
+                              [2, 3, 4, 4, 4, 4, 3, 2],
+                              [2, 2, 3, 3, 3, 3, 2, 2],
+                              [1, 1, 2, 2, 2, 2, 1, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 2, 2, 1, 1, 1, 2, 1]]
+
+blackKingLatePositionScore = [[1, 2, 2, 1, 1, 1, 2, 1],
+                              [1, 1, 1, 1, 1, 1, 1, 1],
+                              [1, 1, 2, 2, 2, 2, 1, 1],
+                              [2, 2, 3, 3, 3, 3, 2, 2],
+                              [2, 3, 4, 4, 4, 4, 3, 2],
+                              [4, 5, 5, 5, 5, 5, 5, 4],
+                              [5, 5, 5, 5, 5, 5, 5, 5],
+                              [2, 2, 2, 2, 2, 2, 2, 2]]
+
+positionScores = {"N" : knightPositionScore,
+                  "B" : bishopPositionScore,
+                  "R" : rookPositionScore,
+                  "Q" : queenPositionScore,
+                  "wp" : whitePawnPositionScore,
+                  "bp" : blackPawnPositionScore,
+                  "wKe" : whiteKingEarlyPositionScore,
+                  "bKe" : blackKingEarlyPositionScore,
+                  "wKl" : whiteKingLatePositionScore,
+                  "bKl" : blackKingLatePositionScore}
 
 def findRandomMove(validMoves):
     return validMoves[random.randint(0, len(validMoves) - 1)]
 
 def evaluate(gs):
+    #Weights:
+    checkWeight = 0.7
+    kingSafetyWeight = 1
+    positionWeight = 0.2
+
+    lateGamePieceCount = 6
+
+
     board = gs.board
     if gs.endGame():
         if gs.checkmate():
@@ -26,36 +136,48 @@ def evaluate(gs):
                 return CHECKMATE
         return STALEMATE
 
-    evaluation = 0
+
+    whitePiecesCount = 0
+    blackPiecesCount = 0
+
+    whitePiecesValue = 0
+    blackPiecesValue = 0
     for r, row in enumerate(board):
         for c, square in enumerate(row):
             pieceColor, piece = square[0], square[1]
-            colorMultiplier = 1 if pieceColor == "w" else -1
-            startRow = 7 if pieceColor == "w" else 0
+
             if piece not in ("-", "K"):
                 #Count material
-                pieceValue = pieceValues[piece]
-                evaluation += pieceValue * colorMultiplier
+                if pieceColor == "w":
+                    if piece != "p":
+                        whitePiecesCount += 1
+                        whitePiecesValue += pieceValues[piece] + positionScores[piece][r][c] * positionWeight
+                    else:
+                        whitePiecesValue += pieceValues[piece] + positionScores["wp"][r][c] * positionWeight
 
-                centerControlWeight = 0.1
-                evaluation -= centerControlWeight * math.sqrt((r - 3.5)**2 + (c - 3.5)**2) * colorMultiplier
+                else:
+                    if piece != "p":
+                        blackPiecesCount += 1
+                        blackPiecesValue += pieceValues[piece] + positionScores[piece][r][c] * positionWeight
+                    else:
+                        blackPiecesValue += pieceValues[piece] + positionScores["bp"][r][c] * positionWeight
 
-                #Push pawns
-                pushPawnsWeight = 0.1
-                if piece == "p":
-                    evaluation += pushPawnsWeight * abs(r - startRow) * colorMultiplier
+    evaluation = whitePiecesValue - blackPiecesValue
 
-            #King safety
-            kingSafetyWeight = 0.5 * (1 - len(gs.moveLog)/40)
-            if piece == "K":
-                #King safety decreases when king far from starting row
-                evaluation -= kingSafetyWeight * abs(r - startRow) * colorMultiplier
-                evaluation -= kingSafetyWeight * abs(c - 3.5) * colorMultiplier
-
-
+    #King safety
+    piecesLeft = whitePiecesCount + blackPiecesCount
+    for i in (1, -1):
+        r, c = gs.whiteKingLocation if i == 1 else gs.blackKingLocation
+        color = "w" if i == 1 else "b"
+        if piecesLeft > lateGamePieceCount: #early game
+            evaluation += i * positionScores[color + "Ke"][r][c] * kingSafetyWeight
+        else:
+            evaluation += i * positionScores[color + "Kl"][r][c] * positionWeight
 
 
-
+    if gs.inCheck:
+        #It's bad to be in check
+        evaluation -= checkWeight * (1 if gs.whiteToMove else -1)
 
     return evaluation
 
@@ -66,12 +188,12 @@ def findBestMove(gs, validMoves):
     nextMove = None
     turnMultiplier = 1 if gs.whiteToMove else -1
     #No iterative deepening
-    findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
+    ev = findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
                      gs, validMoves, DEPTH, turnMultiplier)
 
     #Iterative deepening
     #
-    print(f"Positions evaluated: {counter}")
+    print(f"Positions evaluated: {counter}. Best move: {nextMove}. Evaluation: {ev:.1f}")
 
     if nextMove is None:
         return findRandomMove(validMoves)

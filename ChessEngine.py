@@ -572,10 +572,15 @@ class Move:
 
 
     def getChessNotation(self):
-        return self.getRankFile(self.startRow, self.startCol) + self.getRankFile(self.endRow, self.endCol)
+        capture = "" if self.pieceCaptured == "--" else "x"
+        piece = self.pieceMoved[1] if self.pieceMoved[1] != "p" else ""
+        return piece + capture + self.getRankFile(self.endRow, self.endCol)
     
     def getRankFile(self, row, col):
         return self.colsToFiles[col] + self.rowsToRanks[row]
+
+    def __str__(self):
+        return self.getChessNotation()
 
 
 class CastleRights:
