@@ -17,6 +17,7 @@ class GameState:
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp"],
             ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]]
+
         self.getPieceMoves = {"p" : self.getPawnMoves, "R" : self.getRookMoves, "N" : self.getKnightMoves,
                               "B" : self.getBishopMoves, "Q" : self.getQueenMoves, "K" : self.getKingMoves}
         self.whiteToMove = True
@@ -565,6 +566,7 @@ class Move:
                 self.castleRookStart = (self.startRow, self.startCol - 4)
                 self.castleRookEnd = (self.startRow, self.startCol - 1)
 
+        self.score = 0 #Used for ordering moves in alpha beta pruning
     def __eq__(self, other):
         if isinstance(other, Move):
             return self.moveID == other.moveID
@@ -574,6 +576,8 @@ class Move:
     def getChessNotation(self):
         capture = "" if self.pieceCaptured == "--" else "x"
         piece = self.pieceMoved[1] if self.pieceMoved[1] != "p" else ""
+        if piece == "" and capture != "":
+            piece = self.colsToFiles[self.startCol]
         return piece + capture + self.getRankFile(self.endRow, self.endCol)
     
     def getRankFile(self, row, col):

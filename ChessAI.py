@@ -1,131 +1,106 @@
 import random
-import math
+from ChessParams import *
 
-DEPTH = 3
-CHECKMATE = 1000
+CHECKMATE = 1_000_000
 STALEMATE = 0
 
 pieceValues = {
-    "p": 1,
-    "N": 3,
-    "B": 3,
-    "R": 5,
-    "Q": 9,
+    "p": 100,
+    "N": 320,
+    "B": 330,
+    "R": 500,
+    "Q": 900,
     "K": 0
 }
 
-knightPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
-                       [1, 2, 2, 2, 2, 2, 2, 1],
-                       [1, 2, 3, 3, 3, 3, 2, 1],
-                       [1, 2, 3, 4, 4, 3, 2, 1],
-                       [1, 2, 3, 4, 4, 3, 2, 1],
-                       [1, 2, 3, 3, 3, 3, 2, 1],
-                       [1, 2, 2, 2, 2, 2, 2, 1],
-                       [1, 1, 1, 1, 1, 1, 1, 1]]
+PawnPositionScore = [[0,  0,  0,  0,  0,  0,  0,  0],
+                     [50, 50, 50, 50, 50, 50, 50, 50],
+                     [10, 10, 20, 30, 30, 20, 10, 10],
+                     [5,  5,  10, 25, 25, 10,  5,  5],
+                     [0,  0,  0,  20,  20,  0, 0,  0],
+                     [5, -5, -10,  0,  0, -10, -5, 5],
+                     [5, 10, 10, -20, -20, 10, 10, 10],
+                     [0,  0,  0,  0,  0,  0,  0,  0]]
 
-bishopPositionScore = [[3, 1, 1, 1, 1, 1, 1, 3],
-                       [1, 4, 2, 3, 3, 2, 4, 1],
-                       [2, 2, 4, 3, 3, 4, 2, 2],
-                       [3, 4, 4, 5, 5, 4, 4, 3],
-                       [3, 4, 4, 5, 5, 4, 4, 3],
-                       [2, 2, 4, 3, 3, 4, 2, 2],
-                       [1, 4, 2, 3, 3, 2, 4, 1],
-                       [3, 1, 1, 1, 1, 1, 1, 3]]
+knightPositionScore = [[-50, -40, -30, -30, -30, -30, -40, -50],
+                       [-40, -20, 0, 5, 5, 0, -20, -40],
+                       [-30, 5, 10, 15, 15, 10, 5, -30],
+                       [-30, 0, 15, 20, 20, 15, 0, -30],
+                       [-30, 0, 15, 20, 20, 15, 0, -30],
+                       [-30, 5, 10, 15, 15, 10, 5, -30],
+                       [-40, -20, 0, 5, 5, 0, -20, -40],
+                       [-50, -40, -30, -30, -30, -30, -40, -50]]
 
-rookPositionScore = [[2, 1, 4, 5, 5, 4, 1, 2],
-                     [2, 1, 4, 5, 5, 4, 1, 2],
-                     [2, 1, 2, 3, 3, 2, 1, 2],
-                     [1, 1, 1, 2, 2, 1, 1, 1],
-                     [1, 1, 1, 2, 2, 1, 1, 1],
-                     [2, 1, 2, 3, 3, 2, 1, 2],
-                     [2, 1, 4, 5, 5, 4, 1, 2],
-                     [2, 1, 4, 5, 5, 4, 1, 2]]
+bishopPositionScore = [[-20, -10, -10, -10, -10, -10, -10, -20],
+                       [-10, 0, 0, 0, 0, 0, 0, -10],
+                       [-10, 0, 5, 10, 10, 5, 0, -10],
+                       [-10, 5, 5, 10, 10, 5, 5, -10],
+                       [-10, 0, 10, 10, 10, 10, 0, -10],
+                       [-10, 10, 10, 10, 10, 10, 10, -10],
+                       [-10, 5, 0, 0, 0, 0, 5, -10],
+                       [-20, -10, -10, -10, -10, -10, -10, -20]]
 
-queenPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
-                      [1, 2, 3, 3, 3, 3, 2, 1],
-                      [2, 5, 5, 4, 4, 5, 5, 2],
-                      [2, 4, 4, 5, 5, 4, 4, 2],
-                      [2, 4, 4, 5, 5, 4, 4, 2],
-                      [1, 5, 5, 4, 4, 5, 5, 1],
-                      [2, 2, 3, 3, 3, 3, 2, 2],
-                      [1, 1, 1, 1, 1, 1, 1, 1]]
+rookPositionScore = [[0, 0, 0, 0, 0, 0, 0, 0],
+                     [5, 10, 10, 10, 10, 10, 10, 5],
+                     [-5, 0, 0, 0, 0, 0, 0, -5],
+                     [-5, 0, 0, 0, 0, 0, 0, -5],
+                     [-5, 0, 0, 0, 0, 0, 0, -5],
+                     [-5, 0, 0, 0, 0, 0, 0, -5],
+                     [-5, 0, 0, 0, 0, 0, 0, -5],
+                     [0, 0, 0, 5, 5, 0, 0, 0]]
 
-whitePawnPositionScore = [[8, 8, 8, 8, 8, 8, 8, 8],
-                          [7, 7, 8, 8, 8, 8, 7, 7],
-                          [4, 6, 7, 7, 7, 7, 6, 5],
-                          [3, 4, 5, 5, 5, 5, 3, 3],
-                          [2, 3, 4, 5, 5, 2, 2, 2],
-                          [2, 3, 2, 3, 3, 1, 3, 3],
-                          [1, 1, 1, 1, 1, 1, 1, 1],
-                          [1, 1, 1, 1, 1, 1, 1, 1]]
+queenPositionScore = [[-20, -10, -10, -5, -5, -10, -10, -20],
+                      [-10, 0, 0, 0, 0, 0, 0, -10],
+                      [-10, 0, 5, 5, 5, 5, 0, -10],
+                      [-5, 0, 5, 5, 5, 5, 0, -5],
+                      [0, 0, 5, 5, 5, 5, 0, -5],
+                      [-10, 5, 5, 5, 5, 5, 0, -10],
+                      [-10, 0, 5, 0, 0, 0, 0, -10],
+                      [-20, -10, -10, -5, -5, -10, -10, -20]]
 
-blackPawnPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
-                          [1, 1, 1, 1, 1, 1, 1, 1],
-                          [3, 3, 1, 3, 3, 2, 3, 2],
-                          [2, 2, 2, 5, 5, 4, 3, 2],
-                          [3, 3, 5, 5, 5, 5, 4, 3],
-                          [5, 6, 7, 7, 7, 7, 6, 5],
-                          [7, 7, 8, 8, 8, 8, 7, 7],
-                          [8, 8, 8, 8, 8, 8, 8, 8]]
+kingEarlyPositionScore = [[-30, -40, -40, -50, -50, -40, -40, -30],
+                          [-30, -40, -40, -50, -50, -40, -40, -30],
+                          [-30, -40, -40, -50, -50, -40, -40, -30],
+                          [-30, -40, -40, -50, -50, -40, -40, -30],
+                          [-20, -30, -30, -40, -40, -30, -30, -20],
+                          [-10, -20, -20, -20, -20, -20, -20, -10],
+                          [20, 20, 0, 0, 0, 0, 20, 20],
+                          [20, 30, 10, 0, 0, 10, 30, 20]]
 
-whiteKingEarlyPositionScore = [[1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [2, 2, 1, 1, 1, 1, 1, 2],
-                              [3, 5, 5, 2, 2, 3, 5, 3]]
+kingLatePositionScore = [[-50, -40, -30, -20, -20, -30, -40, -50],
+                         [-30, -20, -10, 0, 0, -10, -20, -30],
+                         [-30, -10, 20, 30, 30, 20, -10, -30],
+                         [-30, -10, 30, 40, 40, 30, -10, -30],
+                         [-30, -10, 30, 40, 40, 30, -10, -30],
+                         [-30, -10, 20, 30, 30, 20, -10, -30],
+                         [-30, -30, 0, 0, 0, 0, -30, -30],
+                         [-50, -30, -30, -30, -30, -30, -30, -50]]
 
-blackKingEarlyPositionScore = [[3, 5, 3, 2, 2, 5, 5, 3],
-                              [2, 2, 1, 1, 1, 1, 1, 2],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1]]
-
-whiteKingLatePositionScore = [[2, 2, 2, 2, 2, 2, 2, 2],
-                              [5, 5, 5, 5, 5, 5, 5, 5],
-                              [4, 5, 5, 5, 5, 5, 5, 4],
-                              [2, 3, 4, 4, 4, 4, 3, 2],
-                              [2, 2, 3, 3, 3, 3, 2, 2],
-                              [1, 1, 2, 2, 2, 2, 1, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 2, 2, 1, 1, 1, 2, 1]]
-
-blackKingLatePositionScore = [[1, 2, 2, 1, 1, 1, 2, 1],
-                              [1, 1, 1, 1, 1, 1, 1, 1],
-                              [1, 1, 2, 2, 2, 2, 1, 1],
-                              [2, 2, 3, 3, 3, 3, 2, 2],
-                              [2, 3, 4, 4, 4, 4, 3, 2],
-                              [4, 5, 5, 5, 5, 5, 5, 4],
-                              [5, 5, 5, 5, 5, 5, 5, 5],
-                              [2, 2, 2, 2, 2, 2, 2, 2]]
-
-positionScores = {"N" : knightPositionScore,
-                  "B" : bishopPositionScore,
-                  "R" : rookPositionScore,
-                  "Q" : queenPositionScore,
-                  "wp" : whitePawnPositionScore,
-                  "bp" : blackPawnPositionScore,
-                  "wKe" : whiteKingEarlyPositionScore,
-                  "bKe" : blackKingEarlyPositionScore,
-                  "wKl" : whiteKingLatePositionScore,
-                  "bKl" : blackKingLatePositionScore}
+positionScores = {"wp" : PawnPositionScore,
+                  "wN" : knightPositionScore,
+                  "wB" : bishopPositionScore,
+                  "wR" : rookPositionScore,
+                  "wQ" : queenPositionScore,
+                  "wKe" : kingEarlyPositionScore,
+                  "wKl" : kingLatePositionScore,
+                  "bp" : PawnPositionScore[::-1],
+                  "bN" : knightPositionScore[::-1],
+                  "bB" : bishopPositionScore[::-1],
+                  "bR" : rookPositionScore[::-1],
+                  "bQ" : queenPositionScore[::-1],
+                  "bKe" : kingEarlyPositionScore[::-1],
+                  "bKl" : kingLatePositionScore[::-1]}
 
 def findRandomMove(validMoves):
     return validMoves[random.randint(0, len(validMoves) - 1)]
 
 def evaluate(gs):
     #Weights:
-    checkWeight = 0.7
+    checkWeight = 0.5
     kingSafetyWeight = 1
-    positionWeight = 0.2
+    positionWeight = 1
 
     lateGamePieceCount = 6
-
 
     board = gs.board
     if gs.endGame():
@@ -149,18 +124,13 @@ def evaluate(gs):
             if piece not in ("-", "K"):
                 #Count material
                 if pieceColor == "w":
+                    whitePiecesValue += pieceValues[piece] + positionScores[square][r][c] * positionWeight
                     if piece != "p":
                         whitePiecesCount += 1
-                        whitePiecesValue += pieceValues[piece] + positionScores[piece][r][c] * positionWeight
-                    else:
-                        whitePiecesValue += pieceValues[piece] + positionScores["wp"][r][c] * positionWeight
-
                 else:
+                    blackPiecesValue += pieceValues[piece] + positionScores[square][r][c] * positionWeight
                     if piece != "p":
                         blackPiecesCount += 1
-                        blackPiecesValue += pieceValues[piece] + positionScores[piece][r][c] * positionWeight
-                    else:
-                        blackPiecesValue += pieceValues[piece] + positionScores["bp"][r][c] * positionWeight
 
     evaluation = whitePiecesValue - blackPiecesValue
 
@@ -179,7 +149,7 @@ def evaluate(gs):
         #It's bad to be in check
         evaluation -= checkWeight * (1 if gs.whiteToMove else -1)
 
-    return evaluation
+    return evaluation/100
 
 def findBestMove(gs, validMoves):
     global counter
@@ -193,7 +163,7 @@ def findBestMove(gs, validMoves):
 
     #Iterative deepening
     #
-    print(f"Positions evaluated: {counter}. Best move: {nextMove}. Evaluation: {ev:.1f}")
+    print(f"Positions evaluated: {counter}. Best move: {nextMove}. Evaluation: {ev * turnMultiplier:.1f}")
 
     if nextMove is None:
         return findRandomMove(validMoves)
@@ -209,6 +179,7 @@ def findMoveAlphaBeta(alpha, beta, gs, validMoves, depth, turnMultiplier):
         return turnMultiplier * evaluate(gs)
 
     maxEval = -CHECKMATE
+    validMoves = orderMoves(validMoves)
     for move in validMoves:
         gs.makeMove(move)
         eval = -findMoveAlphaBeta(-beta, -alpha, gs, gs.getValidMoves(),
@@ -225,5 +196,22 @@ def findMoveAlphaBeta(alpha, beta, gs, validMoves, depth, turnMultiplier):
         if alpha >= beta:
             break
     if abs(maxEval) == CHECKMATE:
-        maxEval -= depth #Find fastest mate
+        maxEval -= depth #Find the fastest mate
     return maxEval
+
+def orderMoves(validMoves):
+    for i, move in enumerate(validMoves):
+        if move.pieceCaptured != "--":
+            score = pieceValues[move.pieceCaptured[1]] - pieceValues[move.pieceMoved[1]]
+            validMoves[i].score += score
+        elif move.isPawnPromotion:
+            validMoves[i].score += pieceValues["Q"] - pieceValues["p"]
+        if move.pieceMoved[1] != "K":
+            positionScore = positionScores[move.pieceMoved][move.endRow][move.endCol] - \
+                        positionScores[move.pieceMoved][move.startRow][move.startCol]
+        else:
+            positionScore = positionScores[move.pieceMoved + "e"][move.endRow][move.endCol] - \
+                            positionScores[move.pieceMoved + "e"][move.startRow][move.startCol]
+        validMoves[i].score += positionScore
+    validMoves.sort(key=lambda x: x.score, reverse=True)
+    return validMoves
