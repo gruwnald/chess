@@ -103,7 +103,7 @@ def main():
             elif gs.stalemate():
                 drawEndGameText(screen, "Stalemate")
             else:
-                drawEndGameText(screen, "Draw by insufficient material")
+                drawEndGameText(screen, "Draw")
             gameOver = True
 
         clock.tick(MAX_FPS)

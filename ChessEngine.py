@@ -1,4 +1,5 @@
 from collections import Counter
+import random
 
 class GameState:
     def __init__(self) -> None:
@@ -32,12 +33,34 @@ class GameState:
         self.currentCastlingRights = CastleRights(True, True, True, True)
         self.castleRightsLog = [CastleRights(self.currentCastlingRights.wks, self.currentCastlingRights.bks,
                                              self.currentCastlingRights.wqs, self.currentCastlingRights.bqs)]
-    
+        pieces = ["wp", "wR", "wN", "wB", "wQ", "wK", "bp", "bR", "bN", "bB", "bQ", "bK"]
+        random.seed(262237)
+        self.zobristPieces = {piece: [[random.getrandbits(64) for _ in range(8)] for _ in range(8)] for piece in pieces}
+        self.zobristSide = random.getrandbits(64)
+        self.zobristCastle = [random.getrandbits(64) for _ in range(4)] # 4 possible castling rights (wks, bks, wqs, bqs)
+        self.zobristEnpassant = [random.getrandbits(64) for _ in range(8)] # 8 columns where en passant might be possible
+        h = 0
+        for r in range(8):
+            for c in range(8):
+                piece = self.board[r][c]
+                if piece != "--":
+                    h ^= self.zobristPieces[piece][r][c]
+        self.hash = h
+        self.positionsSeen = {self.hash: 0}
+
 
     def makeMove(self, move):
         self.board[move.startRow][move.startCol] = "--"
         self.board[move.endRow][move.endCol] = move.pieceMoved
         self.moveLog.append(move)
+
+
+        self.hash ^= self.zobristPieces[move.pieceMoved][move.startRow][move.startCol]
+        self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]
+
+        if move.pieceCaptured != "--":
+            self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol]
+
         if move.pieceMoved == "wK":
             self.whiteKingLocation = (move.endRow, move.endCol)
         elif move.pieceMoved == "bK":
@@ -45,32 +68,49 @@ class GameState:
 
         if move.isPawnPromotion:
             self.board[move.endRow][move.endCol] = move.pieceMoved[0] + "Q"
+            self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]
+            self.hash ^= self.zobristPieces[move.pieceMoved[0]+"Q"][move.endRow][move.endCol]
 
         if move.isEnpassantMove:
             self.board[move.startRow][move.endCol] = "--"
+            self.hash ^= self.zobristPieces[move.pieceCaptured][move.startRow][move.endCol] #Capture the pawn
+            self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol] #correction for ordinary capture hash
+
 
         #update enpassantPossible
+        if self.enpassantPossible != (): #remove enpassant if it was possible
+            self.hash ^= self.zobristEnpassant[self.enpassantPossible[1]]
         if move.pieceMoved[1] == "p" and abs(move.startRow - move.endRow) == 2:
             self.enpassantPossible = ((move.startRow + move.endRow)//2, move.startCol)
+            self.hash ^= self.zobristEnpassant[move.startCol]
         else:
             self.enpassantPossible = ()
+
 
         #castle move
         if move.isCastleMove:
             if move.endCol - move.startCol == 2: #kingside castle
                 self.board[move.endRow][move.endCol - 1] = self.board[move.endRow][move.endCol + 1] #move the rook
                 self.board[move.endRow][move.endCol + 1] = "--"
+                self.hash ^= self.zobristPieces[move.pieceMoved[0]+"R"][move.endRow][move.endCol + 1]
+                self.hash ^= self.zobristPieces[move.pieceMoved[0]+"R"][move.endRow][move.endCol - 1]
             else: #queenside castle
                 self.board[move.endRow][move.endCol + 1] = self.board[move.endRow][move.endCol - 2]  # move the rook
                 self.board[move.endRow][move.endCol - 2] = "--"
-
+                self.hash ^= self.zobristPieces[move.pieceMoved[0] + "R"][move.endRow][move.endCol - 2]
+                self.hash ^= self.zobristPieces[move.pieceMoved[0] + "R"][move.endRow][move.endCol + 1]
 
         #update castling rights
-        self.updateCastleRights(move)
+        self.updateCastleRights(move) #Also updates hash
         self.castleRightsLog.append(CastleRights(self.currentCastlingRights.wks, self.currentCastlingRights.bks,
                                                  self.currentCastlingRights.wqs, self.currentCastlingRights.bqs))
-
         self.whiteToMove = not self.whiteToMove
+        self.hash ^= self.zobristSide
+
+        if self.hash in self.positionsSeen:
+            self.positionsSeen[self.hash] += 1
+        else:
+            self.positionsSeen[self.hash] = 1
     
 
     def undoMove(self):
@@ -78,6 +118,15 @@ class GameState:
             move = self.moveLog.pop()
             self.board[move.startRow][move.startCol] = move.pieceMoved
             self.board[move.endRow][move.endCol] = move.pieceCaptured
+            self.positionsSeen[self.hash] -= 1
+
+            self.hash ^= self.zobristPieces[move.pieceMoved][move.startRow][move.startCol]  # put in start
+            self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]  # remove end
+
+
+            if move.pieceCaptured != "--":
+                self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol] #remove captured piece
+
             if move.pieceMoved == "wK":
                 self.whiteKingLocation = (move.startRow, move.startCol)
             elif move.pieceMoved == "bK":
@@ -87,25 +136,53 @@ class GameState:
                 self.board[move.endRow][move.endCol] = "--"
                 self.board[move.startRow][move.endCol] = move.pieceCaptured
                 self.enpassantPossible = (move.endRow, move.endCol)
+                self.hash ^= self.zobristPieces[move.pieceCaptured][move.startRow][move.endCol]
+                self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol] #correction
+
+
             if move.pieceMoved[1] == "p" and abs(move.startRow - move.endRow) == 2:
                 self.enpassantPossible = ()
+                self.hash ^= self.zobristEnpassant[move.startCol]
+            if len(self.moveLog) != 0:
+                if self.moveLog[-1].pieceMoved[1] == "p" and abs(self.moveLog[-1].startRow - self.moveLog[-1].endRow) == 2:
+                    self.enpassantPossible = ((self.moveLog[-1].startRow + self.moveLog[-1].endRow)//2, self.moveLog[-1].startCol)
+                    self.hash ^= self.zobristEnpassant[self.moveLog[-1].endCol]
 
             #undo castling rights
-            self.castleRightsLog.pop()
-            newRights = self.castleRightsLog[-1]
-            self.currentCastlingRights = CastleRights(newRights.wks, newRights.bks, newRights.wqs, newRights.bqs)
+            crAfter = self.castleRightsLog.pop()
+            crBefore = self.castleRightsLog[-1]
+            if crAfter.wks != crBefore.wks:
+                self.hash ^= self.zobristCastle[0]
+            if crAfter.bks != crBefore.bks:
+                self.hash ^= self.zobristCastle[1]
+            if crAfter.wqs != crBefore.wqs:
+                self.hash ^= self.zobristCastle[2]
+            if crAfter.bqs != crBefore.bqs:
+                self.hash ^= self.zobristCastle[3]
+            self.currentCastlingRights = CastleRights(crBefore.wks, crBefore.bks, crBefore.wqs, crBefore.bqs)
+
             if move.isCastleMove:
                 if move.endCol - move.startCol == 2:
                     self.board[move.endRow][move.endCol + 1] = self.board[move.endRow][move.endCol - 1]
                     self.board[move.endRow][move.endCol - 1] = "--"
+                    self.hash ^= self.zobristPieces[move.pieceMoved[0] + "R"][move.endRow][move.endCol - 1]
+                    self.hash ^= self.zobristPieces[move.pieceMoved[0] + "R"][move.endRow][move.endCol + 1]
                 else:
                     self.board[move.endRow][move.endCol - 2] = self.board[move.endRow][move.endCol + 1]
                     self.board[move.endRow][move.endCol + 1] = "--"
+                    self.hash ^= self.zobristPieces[move.pieceMoved[0] + "R"][move.endRow][move.endCol + 1]
+                    self.hash ^= self.zobristPieces[move.pieceMoved[0] + "R"][move.endRow][move.endCol - 2]
+
+            if move.isPawnPromotion:
+                self.hash ^= self.zobristPieces[move.pieceMoved[0]+"Q"][move.endRow][move.endCol]
+                self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]
 
             self.whiteToMove = not self.whiteToMove
-
+            self.hash ^= self.zobristSide
 
     def updateCastleRights(self, move):
+        prevCastlingRights = CastleRights(self.currentCastlingRights.wks, self.currentCastlingRights.bks,
+                              self.currentCastlingRights.wqs, self.currentCastlingRights.bqs)
         if move.pieceMoved == "wK":
             self.currentCastlingRights.wks = False
             self.currentCastlingRights.wqs = False
@@ -136,6 +213,14 @@ class GameState:
                     self.currentCastlingRights.bqs = False
                 elif move.endCol == 7:
                     self.currentCastlingRights.bks = False
+        if prevCastlingRights.wks != self.currentCastlingRights.wks:
+            self.hash ^= self.zobristCastle[0]
+        if prevCastlingRights.bks != self.currentCastlingRights.bks:
+            self.hash ^= self.zobristCastle[1]
+        if prevCastlingRights.wqs != self.currentCastlingRights.wqs:
+            self.hash ^= self.zobristCastle[2]
+        if prevCastlingRights.bqs != self.currentCastlingRights.bqs:
+            self.hash ^= self.zobristCastle[3]
 
 
     def getValidMoves(self):
@@ -529,6 +614,8 @@ class GameState:
             return True
         elif piecesLeft == Counter(["wK", "bK", "wB"]) or piecesLeft == Counter(["wK", "bK", "bB"]):
             return True
+        if max(self.positionsSeen.values()) >= 3:
+            return True #3-fold repetition
         return self.checkmate() or self.stalemate()
 
 

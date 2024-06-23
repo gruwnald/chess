@@ -1,5 +1,7 @@
 import random
+import time
 from ChessParams import *
+from TranspositionTable import *
 
 CHECKMATE = 1_000_000
 STALEMATE = 0
@@ -76,6 +78,7 @@ kingLatePositionScore = [[-50, -40, -30, -20, -20, -30, -40, -50],
                          [-30, -30, 0, 0, 0, 0, -30, -30],
                          [-50, -30, -30, -30, -30, -30, -30, -50]]
 
+
 positionScores = {"wp" : PawnPositionScore,
                   "wN" : knightPositionScore,
                   "wB" : bishopPositionScore,
@@ -95,6 +98,7 @@ def findRandomMove(validMoves):
     return validMoves[random.randint(0, len(validMoves) - 1)]
 
 def evaluate(gs):
+
     #Weights:
     checkWeight = 0.5
     kingSafetyWeight = 1
@@ -121,6 +125,7 @@ def evaluate(gs):
         for c, square in enumerate(row):
             pieceColor, piece = square[0], square[1]
 
+            #Count pieces and values
             if piece not in ("-", "K"):
                 #Count material
                 if pieceColor == "w":
@@ -152,66 +157,136 @@ def evaluate(gs):
     return evaluation/100
 
 def findBestMove(gs, validMoves):
-    global counter
+    global startTime
+    startTime = time.time()
+
+    global transpositionTable #Stores positions that have been visited before
+    transpositionTable = TranspositionTable()
+
+    global counter #Number of positions evaluated
     counter = 0
-    global nextMove
+
+    global nextMove #Best move found
     nextMove = None
+
+    global endProgram #End program flag for iterative deepening
+    endProgram = False
     turnMultiplier = 1 if gs.whiteToMove else -1
-    #No iterative deepening
-    ev = findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
-                     gs, validMoves, DEPTH, turnMultiplier)
 
-    #Iterative deepening
-    #
-    print(f"Positions evaluated: {counter}. Best move: {nextMove}. Evaluation: {ev * turnMultiplier:.1f}")
+    d = 1
+    while not endProgram:
+        ev = findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
+                               gs, validMoves, d, turnMultiplier, maxDepth=d)
+        if ev == CHECKMATE-d: #Found forced mate
+            break
+        if depthLimited:
+            endProgram = (d == DEPTH)
+            moveToPlay = nextMove
+        else:
+            if time.time() - startTime < timePerMove: #Search was completed, nextMove is the best move on depth d
+                moveToPlay = nextMove
+            else:
+                endProgram = True
+        print(f"Best move on depth {d}: {moveToPlay}, eval: {ev * turnMultiplier:.1f}")
+        d += 1
 
-    if nextMove is None:
+    print(f"Positions evaluated: {counter}. Time used: {time.time() - startTime:.1f}s. Best move: {moveToPlay}. Evaluation: {ev * turnMultiplier:.1f}")
+
+    if moveToPlay is None:
         return findRandomMove(validMoves)
-    return nextMove
+    return moveToPlay
+
+    # if depthLimited:
+    #     for d in range(1, DEPTH+1):
+    #         ev = findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
+    #                                gs, validMoves, d, turnMultiplier, maxDepth=DEPTH)
+    #         print(f"Best move on depth {d}: {nextMove}, eval: {ev * turnMultiplier:.1f}")
+    #         if ev == CHECKMATE-d:
+    #             break
+    #     moveToPlay = nextMove
+    #
+    # else:
+    #     d = 1
+    #     moveToPlay = None
+    #     while not endProgram:
+    #         ev = findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
+    #                                gs, validMoves, d, turnMultiplier, maxDepth=d)
+    #         if time.time() - startTime < timePerMove: #Search was completed, nextMove is the best move on depth d
+    #             moveToPlay = nextMove
+    #             print(f"Best move on depth {d}: {moveToPlay}, eval: {ev*turnMultiplier:.1f}")
+    #             if  ev == CHECKMATE-d:
+    #                 break
+    #         d += 1
 
 
-def findMoveAlphaBeta(alpha, beta, gs, validMoves, depth, turnMultiplier):
-    global nextMove
-    global counter
+
+def findMoveAlphaBeta(alpha, beta, gs, validMoves, depth, turnMultiplier, maxDepth):
+    global nextMove, counter, transpositionTable, startTime, endProgram
+
+    alphaOrig = alpha
+    entry = transpositionTable.lookup(gs)
+    if entry is not None: #This position has been visited before
+        if entry['depth'] >= depth:
+            if entry['flag'] == 'EXACT':
+                return entry['value']
+            elif entry['flag'] == 'LOWERBOUND':
+                alpha = max(alpha, entry['value'])
+            elif entry['flag'] == 'UPPERBOUND':
+                beta = min(beta, entry['value'])
+            if alpha >= beta:
+                return entry['value']
+
+        validMoves.insert(0, validMoves.pop(validMoves.index(entry['move']))) #Order moves by transposition table
 
     if depth == 0 or gs.endGame():
         counter += 1
         return turnMultiplier * evaluate(gs)
 
     maxEval = -CHECKMATE
-    validMoves = orderMoves(validMoves)
+    bestMove = validMoves[0]
     for move in validMoves:
+        if not depthLimited:
+            if time.time() - startTime > timePerMove:
+                endProgram = True
+                break
+
         gs.makeMove(move)
         eval = -findMoveAlphaBeta(-beta, -alpha, gs, gs.getValidMoves(),
-                                  depth - 1, -turnMultiplier)
+                                  depth - 1, -turnMultiplier, maxDepth=maxDepth)
+        gs.undoMove()
+
         if eval > maxEval:
             maxEval = eval
-
-            if depth == DEPTH:
+            bestMove = move
+            if depth == maxDepth:
                 nextMove = move
-                # validMoves.remove(move)
-                # validMoves.insert(0, move)
-        gs.undoMove()
+
         alpha = max(alpha, maxEval)
         if alpha >= beta:
             break
+
     if abs(maxEval) == CHECKMATE:
         maxEval -= depth #Find the fastest mate
-    return maxEval
 
-def orderMoves(validMoves):
-    for i, move in enumerate(validMoves):
-        if move.pieceCaptured != "--":
-            score = pieceValues[move.pieceCaptured[1]] - pieceValues[move.pieceMoved[1]]
-            validMoves[i].score += score
-        elif move.isPawnPromotion:
-            validMoves[i].score += pieceValues["Q"] - pieceValues["p"]
-        if move.pieceMoved[1] != "K":
-            positionScore = positionScores[move.pieceMoved][move.endRow][move.endCol] - \
-                        positionScores[move.pieceMoved][move.startRow][move.startCol]
+    #Store in transposition table if position not seen or better depth
+    update = False
+    if entry is None:
+        update = True
+    elif entry['depth'] < depth:
+        update = True
+
+    if update:
+        if maxEval <= alphaOrig:
+            flag = 'upperbound'
+        elif maxEval >= beta:
+            flag = 'lowerbound'
         else:
-            positionScore = positionScores[move.pieceMoved + "e"][move.endRow][move.endCol] - \
-                            positionScores[move.pieceMoved + "e"][move.startRow][move.startCol]
-        validMoves[i].score += positionScore
-    validMoves.sort(key=lambda x: x.score, reverse=True)
-    return validMoves
+            flag = 'exact'
+        transpositionTable.store(
+            gs=gs,
+            depth=depth,
+            value=maxEval,
+            move=bestMove,
+            flag=flag
+        )
+    return maxEval
