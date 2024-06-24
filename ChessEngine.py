@@ -127,6 +127,7 @@ class GameState:
             self.board[move.startRow][move.startCol] = move.pieceMoved
             self.board[move.endRow][move.endCol] = move.pieceCaptured
             self.positionsSeen[self.hash] -= 1
+            self.drawByRepetition = False
 
             self.hash ^= self.zobristPieces[move.pieceMoved][move.startRow][move.startCol]  # put in start
             self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]  # remove end

@@ -59,6 +59,7 @@ def findBestMove(gs, validMoves):
 
     turnMultiplier = 1 if gs.whiteToMove else -1
 
+    moveToPlay = None
     d = 1
     while not endProgram:
         ev = findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
@@ -78,7 +79,8 @@ def findBestMove(gs, validMoves):
                 moveToPlay = nextMove
                 print(f"Best move on depth {d}: {moveToPlay}, time used: {time.time() - startTime:.1f}s, positions evaluated: {counter}, eval: {ev * turnMultiplier:.1f}")
         d += 1
-
+    if moveToPlay is None:
+        moveToPlay = validMoves[0] #No good move was found, position is lost, can play anything
     return moveToPlay
 
 
