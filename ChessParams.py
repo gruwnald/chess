@@ -1,7 +1,7 @@
 DEPTH = 5
-timePerMove = 10
+timePerMove = 30
 
-depthLimited = True
+depthLimited = False
 
-isWhiteHuman = True
+isWhiteHuman = False
 isBlackHuman = False

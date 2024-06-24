@@ -1,4 +1,5 @@
 from collections import Counter
+from PositionScores import *
 import random
 
 class GameState:
@@ -48,18 +49,22 @@ class GameState:
         self.hash = h
         self.positionsSeen = {self.hash: 0}
 
+        self.piecesLeft = 14 #4 rooks, 4 knights, 4 bishops, 2 queens
+
+        self.drawByRepetition = False
 
     def makeMove(self, move):
         self.board[move.startRow][move.startCol] = "--"
         self.board[move.endRow][move.endCol] = move.pieceMoved
         self.moveLog.append(move)
 
-
         self.hash ^= self.zobristPieces[move.pieceMoved][move.startRow][move.startCol]
         self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]
 
         if move.pieceCaptured != "--":
             self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol]
+            if move.pieceCaptured[1] != "p":
+                self.piecesLeft -= 1
 
         if move.pieceMoved == "wK":
             self.whiteKingLocation = (move.endRow, move.endCol)
@@ -70,12 +75,12 @@ class GameState:
             self.board[move.endRow][move.endCol] = move.pieceMoved[0] + "Q"
             self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]
             self.hash ^= self.zobristPieces[move.pieceMoved[0]+"Q"][move.endRow][move.endCol]
+            self.piecesLeft += 1
 
         if move.isEnpassantMove:
             self.board[move.startRow][move.endCol] = "--"
             self.hash ^= self.zobristPieces[move.pieceCaptured][move.startRow][move.endCol] #Capture the pawn
             self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol] #correction for ordinary capture hash
-
 
         #update enpassantPossible
         if self.enpassantPossible != (): #remove enpassant if it was possible
@@ -104,13 +109,16 @@ class GameState:
         self.updateCastleRights(move) #Also updates hash
         self.castleRightsLog.append(CastleRights(self.currentCastlingRights.wks, self.currentCastlingRights.bks,
                                                  self.currentCastlingRights.wqs, self.currentCastlingRights.bqs))
-        self.whiteToMove = not self.whiteToMove
         self.hash ^= self.zobristSide
 
         if self.hash in self.positionsSeen:
             self.positionsSeen[self.hash] += 1
+            if self.positionsSeen[self.hash] == 3:
+                self.drawByRepetition = True
         else:
             self.positionsSeen[self.hash] = 1
+
+        self.whiteToMove = not self.whiteToMove
     
 
     def undoMove(self):
@@ -123,9 +131,10 @@ class GameState:
             self.hash ^= self.zobristPieces[move.pieceMoved][move.startRow][move.startCol]  # put in start
             self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]  # remove end
 
-
             if move.pieceCaptured != "--":
                 self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol] #remove captured piece
+                if move.pieceCaptured[1] != "p":
+                    self.piecesLeft += 1
 
             if move.pieceMoved == "wK":
                 self.whiteKingLocation = (move.startRow, move.startCol)
@@ -138,7 +147,6 @@ class GameState:
                 self.enpassantPossible = (move.endRow, move.endCol)
                 self.hash ^= self.zobristPieces[move.pieceCaptured][move.startRow][move.endCol]
                 self.hash ^= self.zobristPieces[move.pieceCaptured][move.endRow][move.endCol] #correction
-
 
             if move.pieceMoved[1] == "p" and abs(move.startRow - move.endRow) == 2:
                 self.enpassantPossible = ()
@@ -176,9 +184,9 @@ class GameState:
             if move.isPawnPromotion:
                 self.hash ^= self.zobristPieces[move.pieceMoved[0]+"Q"][move.endRow][move.endCol]
                 self.hash ^= self.zobristPieces[move.pieceMoved][move.endRow][move.endCol]
-
-            self.whiteToMove = not self.whiteToMove
+                self.piecesLeft -= 1
             self.hash ^= self.zobristSide
+            self.whiteToMove = not self.whiteToMove
 
     def updateCastleRights(self, move):
         prevCastlingRights = CastleRights(self.currentCastlingRights.wks, self.currentCastlingRights.bks,
@@ -602,19 +610,19 @@ class GameState:
         return False
 
     def endGame(self):
-        piecesLeft = []
-        for row in self.board:
-            for piece in row:
-                if piece != "--":
-                    piecesLeft.append(piece)
-        piecesLeft = Counter(piecesLeft)
-        if piecesLeft == Counter(["wK", "bK"]):
-            return True
-        elif piecesLeft == Counter(["wK", "bK", "wN"]) or piecesLeft == Counter(["wK", "bK", "bN"]):
-            return True
-        elif piecesLeft == Counter(["wK", "bK", "wB"]) or piecesLeft == Counter(["wK", "bK", "bB"]):
-            return True
-        if max(self.positionsSeen.values()) >= 3:
+        # piecesLeft = []
+        # for row in self.board:
+        #     for piece in row:
+        #         if piece != "--":
+        #             piecesLeft.append(piece)
+        # piecesLeft = Counter(piecesLeft)
+        # if piecesLeft == Counter(["wK", "bK"]):
+        #     return True
+        # elif piecesLeft == Counter(["wK", "bK", "wN"]) or piecesLeft == Counter(["wK", "bK", "bN"]):
+        #     return True
+        # elif piecesLeft == Counter(["wK", "bK", "wB"]) or piecesLeft == Counter(["wK", "bK", "bB"]):
+        #     return True
+        if self.drawByRepetition:
             return True #3-fold repetition
         return self.checkmate() or self.stalemate()
 
