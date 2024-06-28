@@ -50,6 +50,7 @@ def evaluate(gs):
 
 def alphaBeta(alpha, beta, validMoves, gs, depth, maximizingPlayer, maxDepth):
     global nextMove, transpositionTable, positionsEvaluated, startTime, endProgram
+    alphaOrig = alpha
 
     if not depthLimited and time.time() - startTime > timePerMove:
         endProgram = True
@@ -62,18 +63,31 @@ def alphaBeta(alpha, beta, validMoves, gs, depth, maximizingPlayer, maxDepth):
 
     entry = transpositionTable.lookup(gs)
     if entry is not None:
-        validMoves.insert(0, validMoves.pop(validMoves.index(entry['move'])))  # Order moves by transposition table
+        if entry['depth'] >= depth:
+            if entry['flag'] == 'exact':
+                return entry['eval']
+            elif entry['flag'] == 'lowerbound':
+                alpha = max(alpha, entry['eval'])
+            elif entry['flag'] == 'upperbound':
+                beta = min(beta, entry['eval'])
+            if alpha >= beta:
+                return entry['eval']
 
+        for move in entry['moves']:
+            moveToMove = validMoves.pop(validMoves.index(move))
+            validMoves.insert(0, moveToMove)
+
+        #validMoves.insert(0, validMoves.pop(validMoves.index(entry['move'])))  # Order moves by transposition table
+    bestMovesHere = []
     if maximizingPlayer:
         maxValue = -CHECKMATE
-        bestMoveHere = validMoves[0]
         for move in validMoves:
             gs.makeMove(move)
             value = alphaBeta(alpha, beta, gs.getValidMoves(), gs, depth-1, False, maxDepth)
             gs.undoMove()
             if value > maxValue:
                 maxValue = value
-                bestMoveHere = move
+                bestMovesHere.append(move)
                 if depth == maxDepth:
                     nextMove = move
             if maxValue >= beta:
@@ -82,19 +96,24 @@ def alphaBeta(alpha, beta, validMoves, gs, depth, maximizingPlayer, maxDepth):
         if maxValue == CHECKMATE: #Found forced mate
             maxValue = maxValue - (maxDepth - depth)
 
-        transpositionTable.store(gs=gs, move=bestMoveHere, depth=depth)
+        if maxValue >= beta:
+            flag = 'lowerbound'
+        else:
+            flag = 'exact'
+        if bestMovesHere == []:
+            bestMovesHere = [validMoves[0]]
+        transpositionTable.store(gs=gs, moves=bestMovesHere, depth=depth, flag=flag, eval=maxValue)
 
         return maxValue
     else:
         minValue = CHECKMATE
-        bestMoveHere = validMoves[0]
         for move in validMoves:
             gs.makeMove(move)
             value = alphaBeta(alpha, beta, gs.getValidMoves(), gs, depth-1, True, maxDepth)
             gs.undoMove()
             if value < minValue:
                 minValue = value
-                bestMoveHere = move
+                bestMovesHere.append(move)
                 if depth == maxDepth:
                     nextMove = move
             if minValue <= alpha:
@@ -103,7 +122,13 @@ def alphaBeta(alpha, beta, validMoves, gs, depth, maximizingPlayer, maxDepth):
         if minValue == -CHECKMATE:
             minValue = minValue + (maxDepth - depth)
 
-        transpositionTable.store(gs=gs, move=bestMoveHere, depth=depth)
+        if minValue <= alpha:
+            flag = 'upperbound'
+        else:
+            flag = 'exact'
+        if bestMovesHere == []:
+            bestMovesHere = [validMoves[0]]
+        transpositionTable.store(gs=gs, moves=bestMovesHere, depth=depth, flag=flag, eval=minValue)
 
         return minValue
 
