@@ -27,7 +27,7 @@ class GameState:
 
         self.whiteKingLocation = (7, 4)
         self.blackKingLocation = (0, 4)
-        self.inCheck = False
+        self.inCheck = True
         self.pins = []
         self.checks = []
         self.enpassantPossible = () #coordinates for the square where en passant capture is possible

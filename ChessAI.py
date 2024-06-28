@@ -5,6 +5,7 @@ from PositionScores import *
 
 CHECKMATE = 1_000_000
 STALEMATE = 0
+drawnPositions = (["wN", "bN"], ["wN", "wN"], ["bN", "bN"], ["wN"], ["bN"], ["wB"], ["bB"])
 
 def evaluate(gs):
     checkWeight = 50
@@ -20,15 +21,23 @@ def evaluate(gs):
     evaluationEarly = 0
     evaluationLate = 0
     board = gs.board
+
+    piecesLeftExactly = []
     for r, row in enumerate(board):
         for c, piece in enumerate(row):
             if piece != "--":
+                if gs.piecesLeft <= 2: #possible forced draw by insufficient material
+                    if piece[1] != 'K':
+                        piecesLeftExactly.append(piece)
+
                 if piece[0] == 'w':
                     evaluationEarly += pieceValuesEarly[piece[1]] + positionScoresEarly[piece][r][c]
                     evaluationLate += pieceValuesLate[piece[1]] + positionScoresLate[piece][r][c]
                 else:
                     evaluationEarly -= pieceValuesEarly[piece[1]] + positionScoresEarly[piece][r][c]
                     evaluationLate -= pieceValuesLate[piece[1]] + positionScoresLate[piece][r][c]
+    if gs.piecesLeft <= 2 and piecesLeftExactly in drawnPositions:
+        return STALEMATE
 
     piecesLeft = min(gs.piecesLeft, 14) #in case of early promotion
     evaluation = (piecesLeft * evaluationEarly + (14 - piecesLeft) * evaluationLate)/14
@@ -38,113 +47,99 @@ def evaluate(gs):
         evaluation -= checkWeight * (1 if gs.whiteToMove else -1)
     return evaluation/100
 
-def findBestMove(gs, validMoves):
-    global startTime
-    startTime = time.time()
 
-    global transpositionTable #Stores positions that have been visited before
-    transpositionTable = TranspositionTable()
+def alphaBeta(alpha, beta, validMoves, gs, depth, maximizingPlayer, maxDepth):
+    global nextMove, transpositionTable, positionsEvaluated, startTime, endProgram
 
-    global counter #Number of positions evaluated
-    counter = 0
+    if not depthLimited and time.time() - startTime > timePerMove:
+        endProgram = True
+        return 0
 
-    global nextMove #Best move found
-    nextMove = None
-
-    global endProgram #End program flag for iterative deepening
-    endProgram = False
-
-    global evalTime
-    evalTime = 0
-
-    turnMultiplier = 1 if gs.whiteToMove else -1
-
-    moveToPlay = None
-    d = 1
-    while not endProgram:
-        ev = findMoveAlphaBeta(-CHECKMATE, CHECKMATE,
-                               gs, validMoves, d, turnMultiplier, maxDepth=d)
-        if ev == CHECKMATE-d: #Found forced mate
-            break
-        if depthLimited:
-            endProgram = (d == DEPTH)
-            moveToPlay = nextMove
-            print(f"Best move on depth {d}: {moveToPlay}, time used: {time.time() - startTime:.1f}s, positions evaluated: {counter}, eval: {ev * turnMultiplier:.1f}")
-
-        else:
-            if time.time() - startTime > timePerMove: #Search was interrupted, discard nextMove found
-                endProgram = True
-                print(f"Time limit reached on depth {d}.")
-            else:
-                moveToPlay = nextMove
-                print(f"Best move on depth {d}: {moveToPlay}, time used: {time.time() - startTime:.1f}s, positions evaluated: {counter}, eval: {ev * turnMultiplier:.1f}")
-        d += 1
-    if moveToPlay is None:
-        moveToPlay = validMoves[0] #No good move was found, position is lost, can play anything
-    return moveToPlay
-
-
-def findMoveAlphaBeta(alpha, beta, gs, validMoves, depth, turnMultiplier, maxDepth):
-    global nextMove, counter, transpositionTable, startTime, endProgram
 
     if depth == 0 or gs.endGame():
-        counter += 1
-        return turnMultiplier * evaluate(gs)
+        positionsEvaluated += 1
+        return evaluate(gs)
 
-    alphaOrig = alpha
     entry = transpositionTable.lookup(gs)
-    if entry is not None: #This position has been visited before
-        if entry['depth'] >= depth:
-            if entry['flag'] == "EXACT":
-                return entry['value']
-            elif entry['flag'] == "LOWERBOUND":
-                alpha = max(alpha, entry['value'])
-            elif entry['flag'] == "UPPERBOUND":
-                beta = min(beta, entry['value'])
-            if alpha >= beta:
-                return entry['value']
+    if entry is not None:
+        validMoves.insert(0, validMoves.pop(validMoves.index(entry['move'])))  # Order moves by transposition table
 
-        validMoves.insert(0, validMoves.pop(validMoves.index(entry['move']))) #Order moves by transposition table
-
-    maxEval = -CHECKMATE
-    bestMove = validMoves[0] #best move found so far
-    for move in validMoves:
-        if not depthLimited:
-            if time.time() - startTime > timePerMove:
-                endProgram = True
+    if maximizingPlayer:
+        maxValue = -CHECKMATE
+        bestMoveHere = validMoves[0]
+        for move in validMoves:
+            gs.makeMove(move)
+            value = alphaBeta(alpha, beta, gs.getValidMoves(), gs, depth-1, False, maxDepth)
+            gs.undoMove()
+            if value > maxValue:
+                maxValue = value
+                bestMoveHere = move
+                if depth == maxDepth:
+                    nextMove = move
+            if maxValue >= beta:
                 break
+            alpha = max(alpha, maxValue)
+        if maxValue == CHECKMATE: #Found forced mate
+            maxValue = maxValue - (maxDepth - depth)
 
-        gs.makeMove(move)
-        eval = -findMoveAlphaBeta(-beta, -alpha, gs, gs.getValidMoves(),
-                                  depth - 1, -turnMultiplier, maxDepth=maxDepth)
-        gs.undoMove()
+        transpositionTable.store(gs=gs, move=bestMoveHere, depth=depth)
 
-        if eval > maxEval:
-            maxEval = eval
-            bestMove = move
-            if depth == maxDepth:
-                nextMove = move
+        return maxValue
+    else:
+        minValue = CHECKMATE
+        bestMoveHere = validMoves[0]
+        for move in validMoves:
+            gs.makeMove(move)
+            value = alphaBeta(alpha, beta, gs.getValidMoves(), gs, depth-1, True, maxDepth)
+            gs.undoMove()
+            if value < minValue:
+                minValue = value
+                bestMoveHere = move
+                if depth == maxDepth:
+                    nextMove = move
+            if minValue <= alpha:
+                break
+            beta = min(beta, minValue)
+        if minValue == -CHECKMATE:
+            minValue = minValue + (maxDepth - depth)
 
-        alpha = max(alpha, maxEval)
-        if alpha >= beta:
-            break
+        transpositionTable.store(gs=gs, move=bestMoveHere, depth=depth)
 
-    if abs(maxEval) == CHECKMATE:
-        maxEval -= depth #Find the fastest mate
+        return minValue
 
-    #Store in transposition table if position not seen or better depth
-    if (entry is None) or (entry['depth'] < depth):
-        if maxEval <= alphaOrig:
-            flag = "UPPERBOUND"
-        elif maxEval >= beta:
-            flag = "LOWERBOUND"
-        else:
-            flag = "EXACT"
-        transpositionTable.store(
-            gs=gs,
-            depth=depth,
-            move=bestMove,
-            value=maxEval,
-            flag=flag
-        )
-    return maxEval
+
+def findBestMove(gs, validMoves):
+    global nextMove, transpositionTable, positionsEvaluated, startTime, endProgram
+
+    if len(validMoves) == 1:
+        return validMoves[0]
+
+    nextMove = validMoves[0]
+    transpositionTable = TranspositionTable()
+    positionsEvaluated = 0
+    startTime = time.time()
+
+    if depthLimited:
+        for d in range(1, DEPTH+1):
+            ev = alphaBeta(-CHECKMATE, CHECKMATE, validMoves, gs, d, gs.whiteToMove, d)
+            print(f"Best move on depth {d} for {'white' if gs.whiteToMove else 'black'}: {nextMove}, eval: {ev:.2f}, time used: {time.time() - startTime:.2f}s, positions evaluated: {positionsEvaluated}")
+            if abs(ev) >= 0.9*CHECKMATE:
+                break
+        print(f"{25*'#'} Move chosen: {nextMove} {25*'#'}")
+        return nextMove
+    else:
+        endProgram = False
+        d = 1
+        while not endProgram:
+            ev = alphaBeta(-CHECKMATE, CHECKMATE, validMoves, gs, d, gs.whiteToMove, d)
+            if not endProgram:
+                moveToPlay = nextMove
+                evaluation = ev
+                print(f"Best move on depth {d} for {'white' if gs.whiteToMove else 'black'}: {nextMove}, eval: {ev:.2f}, time used: {time.time() - startTime:.2f}s, positions evaluated: {positionsEvaluated}")
+            else: #Search was interrupted, discard nextMove found
+                print(f"Time limit reached on depth {d}.")
+            if abs(evaluation) >= 0.9*CHECKMATE or d == 12: #Found forced mate or reached sufficient depth
+                break
+            d += 1
+        print(f"{25*'#'} Move chosen: {moveToPlay} {25*'#'}")
+        return moveToPlay
