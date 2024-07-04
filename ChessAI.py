@@ -50,7 +50,6 @@ def evaluate(gs):
 
 def alphaBeta(alpha, beta, validMoves, gs, depth, maximizingPlayer, maxDepth):
     global nextMove, transpositionTable, positionsEvaluated, startTime, endProgram
-    alphaOrig = alpha
 
     if not depthLimited and time.time() - startTime > timePerMove:
         endProgram = True
@@ -77,7 +76,6 @@ def alphaBeta(alpha, beta, validMoves, gs, depth, maximizingPlayer, maxDepth):
             moveToMove = validMoves.pop(validMoves.index(move))
             validMoves.insert(0, moveToMove)
 
-        #validMoves.insert(0, validMoves.pop(validMoves.index(entry['move'])))  # Order moves by transposition table
     bestMovesHere = []
     if maximizingPlayer:
         maxValue = -CHECKMATE
